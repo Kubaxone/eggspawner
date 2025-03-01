@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Egg Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <!-- Main Menu -->
+    <div id="mainMenu" class="main-menu">
+        <div class="menu-title"></div>
+        <div class="menu-content">
+            <div class="menu-buttons">
+                <button id="createServerMenuBtn" class="menu-button">Create Server</button>
+                <button id="joinServerMenuBtn" class="menu-button">Join Server</button>
+                <button id="settingsMenuBtn" class="menu-button">Settings</button>
+            </div>
+            <div class="player-settings">
+                <input type="text" id="mainMenuPlayerName" placeholder="Enter your name" required>
+            </div>
+            <!-- Add credits section -->
+            <div class="credits">
+                <h3>Credits</h3>
+                <p>Created by: The Egg Generator Team</p>
+                <p>Libraries & Tools:</p>
+                <ul>
+                    <li>Socket.IO - Real-time communication</li>
+                    <li>Tone.js - Sound effects</li>
+                    <li>Flask - Backend framework</li>
+                </ul>
+                <p>Version 1.0</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Server List Button -->
+    <button id="serverListBtn" class="server-list-btn">Servers</button>
+
+    <!-- Server List Modal -->
+    <div id="serverModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Egg Servers</h2>
+                <div class="header-buttons">
+                    <button id="refreshServerList" class="refresh-btn" title="Refresh server list">⟳</button>
+                    <button id="closeModal" class="close-modal">&times;</button>
+                </div>
+            </div>
+            <div class="server-controls">
+                <input type="text" id="playerNameInput" placeholder="Enter your name" required>
+                <input type="text" id="serverNameInput" placeholder="Enter server name">
+                <input type="number" id="maxPlayersInput" placeholder="Max players (default: 4)" min="1" value="4">
+                <div class="no-limits-toggle">
+                    <input type="checkbox" id="noLimitsMode" class="no-limits-checkbox">
+                    <label for="noLimitsMode">No Limits Mode (WARNING: May cause crashes!)</label>
+                </div>
+                <button id="createServerBtn">Create Server</button>
+                <div class="join-server">
+                    <input type="text" id="serverCodeInput" placeholder="Enter server code">
+                    <button id="joinServerBtn">Join Server</button>
+                </div>
+            </div>
+            <div id="serverList" class="server-list"></div>
+        </div>
+    </div>
+
+    <!-- Add loading screen after the server modal -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <h2>Joining Server...</h2>
+            <div class="loading-spinner"></div>
+            <div id="loadingLogs" class="loading-logs"></div>
+        </div>
+    </div>
+
+    <!-- Chat and Voice Interface -->
+    <div id="chatContainer" class="chat-container">
+        <div id="chatMessages" class="chat-messages"></div>
+        <div id="chatInputContainer" class="chat-input-container">
+            <div class="input-row">
+                <input type="text" id="chatInput" placeholder="Press / to chat" class="chat-input">
+                <button id="toggleVoiceChat" class="voice-chat-btn">Join Voice Chat</button>
+            </div>
+        </div>
+        <div id="voiceChatContainer" class="voice-chat-container">
+            <div id="voiceChatHeader">
+                <h2>VOICE CHAT</h2>
+                <h3>USER</h3>
+            </div>
+            <div id="voiceChatUsers" class="voice-chat-users"></div>
+        </div>
+    </div>
+
+    <!-- Update server info section to include leave button -->
+    <div id="serverInfo" class="server-info">
+        <span id="serverCode"></span>
+        <span id="playerCount"></span>
+        <button id="leaveServerBtn" class="leave-btn">Leave Server</button>
+        <div class="quick-join">
+            <input type="text" id="quickJoinLink" readonly>
+            <button id="copyLinkBtn" class="copy-btn">Copy Link</button>
+        </div>
+    </div>
+
+    <!-- Add admin panel after server info -->
+    <div id="adminPanel" class="admin-panel" style="display: none;">
+        <h3>Admin Controls</h3>
+        <div class="admin-controls">
+            <button id="cleanupBtn" class="admin-btn">Cleanup Eggs</button>
+            <button id="kickAllBtn" class="admin-btn">Kick All Players</button>
+            <div class="spawn-controls">
+                <input type="number" id="spawnCount" min="1" max="1000" value="25" placeholder="Number of eggs">
+                <button id="adminSpawnBtn" class="admin-btn">Spawn Eggs</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <button id="spawnEgg" class="spawn-button">Spawn Egg</button>
+    </div>
+    <div id="eggContainer" class="egg-container"></div>
+
+    <!-- Microwave -->
+    <img id="microwave" class="microwave" src="{{ url_for('static', filename='images/microwave.svg') }}" alt="microwave">
+
+    <!-- Explosion container -->
+    <div id="explosionContainer" class="exploding-container"></div>
+
+    <!-- Enhanced Blue Screen of Death -->
+    <div id="bsod" class="bsod">
+        <div class="content">
+            <div class="sad-face">:(</div>
+            <h1>EGG_CRITICAL_PROCESS_DIED</h1>
+            <div class="error-details">
+                Error Code: 0xEGG000FE<br>
+                Failed module: egg_manager.sys
+            </div>
+            <p class="system-message">
+                We are collecting egg data and analyzing system state: <span id="progress">0</span>% complete
+            </p>
+            <p class="recovery-message">Press ESC to attempt recovery...</p>
+        </div>
+    </div>
+
+    <div id="blackScreen" class="black-screen"></div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content settings-modal">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="close-modal" onclick="document.getElementById('settingsModal').style.display='none'">&times;</button>
+            </div>
+            <div class="settings-section">
+                <h3>Cursor Style</h3>
+                <div class="cursor-options">
+                    <div class="cursor-option" data-cursor="windows">
+                        <img src="/static/images/cursor-windows.svg" alt="Windows Cursor">
+                        <span>Windows</span>
+                    </div>
+                    <div class="cursor-option" data-cursor="default">
+                        <img src="/static/images/cursor-default.svg" alt="Default Cursor">
+                        <span>Default</span>
+                    </div>
+                    <div class="cursor-option" data-cursor="rainbow">
+                        <img src="/static/images/cursor-rainbow.svg" alt="Rainbow Cursor">
+                        <span>Rainbow</span>
+                    </div>
+                    <div class="cursor-option" data-cursor="star">
+                        <img src="/static/images/cursor-star.svg" alt="Star Cursor">
+                        <span>Star</span>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-section">
+                <h3>Game Settings</h3>
+                <div class="setting-item">
+                    <label for="eggSpawnCount">Eggs per Spawn:</label>
+                    <input type="number" id="eggSpawnCount" min="1" max="100" value="25">
+                </div>
+                <div class="setting-item">
+                    <label for="rainbowChance">Rainbow Egg Chance:</label>
+                    <input type="range" id="rainbowChance" min="0" max="100" value="10">
+                    <span id="rainbowChanceValue">10%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
